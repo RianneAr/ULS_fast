@@ -31,8 +31,8 @@ class Uls23(SegmentationAlgorithm):
         os.makedirs("/output/images/ct-binary-uls/", exist_ok=True)
 
         self.load_model()
-        spacings = self.load_data()
-        predictions = self.predict(spacings)
+    ##    spacings = self.load_data()
+        predictions = self.predict()#spacings)
         self.postprocess(predictions)
 
         end_time = time.time()
@@ -68,11 +68,11 @@ class Uls23(SegmentationAlgorithm):
         """
         start_load_time = time.time()
         # Input directory is determined by the algorithm interface on GC
-        input_dir = Path("/input/images/stacked-3d-ct-lesion-volumes/")
+        input_dir = Path("/input/images/ct/")
 
         # Load the spacings per VOI
-        with open(Path("/input/stacked-3d-volumetric-spacings.json"), 'r') as json_file:
-            spacings = json.load(json_file)
+    ##    with open(Path("/input/stacked-3d-volumetric-spacings.json"), 'r') as json_file:
+    ##        spacings = json.load(json_file)
 
         for input_file in input_dir.glob("*.mha"):
             self.id = input_file
@@ -88,19 +88,20 @@ class Uls23(SegmentationAlgorithm):
 
                 # Unstack the VOI's, perform optional preprocessing and save
                 # them to individual binary files for memory-efficient access
-                np.save(f"/tmp/voi_{i}.npy", np.array([voi])) # Add dummy batch dimension for nnUnet
+                np.save(f"/tmp/voi_0.npy", np.array([voi])) # Add dummy batch dimension for nnUnet
 
         end_load_time = time.time()
         print(f"Data pre-processing runtime: {end_load_time - start_load_time}s")
 
-        return spacings
+    ##    return spacings
+        return
 
-    def predict(self, spacings):
+    def predict(self):#, spacings):
         """
         Runs nnUnet inference on the images, then moves to post-processing
         :param spacings: list containing the spacing per VOI
         :return: list of numpy arrays containing the predicted lesion masks per VOI
-        """
+        
         start_inference_time = time.time()
         predictions = []
         for i, voi_spacing in enumerate(spacings):
@@ -111,6 +112,14 @@ class Uls23(SegmentationAlgorithm):
             print(f'\nPredicting image of shape: {voi.shape}, spacing: {voi_spacing}')
             predictions.append(self.predictor.predict_single_npy_array(voi, {'spacing': voi_spacing}, None, None, False))
 
+        end_inference_time = time.time()
+        print(f"Total inference runtime: {end_inference_time - start_inference_time}s")
+        return predictions
+        """
+        start_inference_time = time.time()
+        predictions = []
+        voi = torch.from_numpy(np.load(f"/tmp/voi_0.npy"))
+        predictions.append(self.predictor.predict_single_npy_array(voi, None, None, None, False))
         end_inference_time = time.time()
         print(f"Total inference runtime: {end_inference_time - start_inference_time}s")
         return predictions
